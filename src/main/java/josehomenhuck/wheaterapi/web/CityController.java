@@ -1,9 +1,8 @@
 package josehomenhuck.wheaterapi.web;
 
 import josehomenhuck.wheaterapi.dto.CityResponse;
-import josehomenhuck.wheaterapi.entity.City;
 import josehomenhuck.wheaterapi.service.CityService;
-import josehomenhuck.wheaterapi.dto.CityRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,12 +18,20 @@ public class CityController {
     }
 
     @GetMapping("")
-    public List<CityResponse> findAll() {
-        return cityService.findAll();
+    public ResponseEntity<List<CityResponse>> findAll() {
+        try{
+            return ResponseEntity.ok(cityService.findAll());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 
-    @GetMapping("/{name}")
-    public CityResponse findById(@PathVariable String name) {
-        return cityService.findByCity(name);
+    @GetMapping("/{city}")
+    public ResponseEntity<CityResponse> findByCiy(@PathVariable String city) {
+        try {
+            return ResponseEntity.ok(cityService.findByCity(city));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

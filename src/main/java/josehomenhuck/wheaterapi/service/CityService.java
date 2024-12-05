@@ -6,14 +6,14 @@ import com.mongodb.lang.Nullable;
 import josehomenhuck.wheaterapi.dto.CityResponse;
 import josehomenhuck.wheaterapi.entity.City;
 import josehomenhuck.wheaterapi.entity.Weather;
-import josehomenhuck.wheaterapi.mapper.CityMapper;
+import josehomenhuck.wheaterapi.dto.mapper.CityMapper;
 import josehomenhuck.wheaterapi.repository.CityRepository;
-import josehomenhuck.wheaterapi.dto.CityRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.text.Normalizer;
 import java.util.List;
 
 @Service
@@ -41,7 +41,9 @@ public class CityService {
     }
 
     public CityResponse findByCity(String city) {
-        String cityToLower = city.toLowerCase();
+        String cityToLower = Normalizer.normalize(city, Normalizer.Form.NFD)
+                .replaceAll("[^\\p{ASCII}]", "")
+                .toLowerCase();
         City findCity = cityRepository.findByCity(cityToLower);
 
         if (findCity != null) {
@@ -54,14 +56,22 @@ public class CityService {
             CityResponse updatedCity = save(findCity);
 
             // Capture the new temp
-            Weather newWeather = updatedCity.weather();
+            Weather newWeather = updatedCity.getWeather();
             String newTempStr = newWeather.getTemperature().replace(" °C", "").replace(",", ".");
             double newTemp = Double.parseDouble(newTempStr);
 
             // Calculate the difference
             double tempDifference = Math.abs(newTemp - lastTemp);
 
-            System.out.printf("Diferença entre o último registro de %s é: %s%n", updatedCity.city(), formatTemperature(tempDifference));
+            String message;
+
+            if (tempDifference > 1) {
+                message = String.format("A temperatura de %s mudou de: %s -> %s", city, lastWeather.getTemperature(), newWeather.getTemperature());
+            } else {
+                message = String.format("A temperatura de %s não mudou: %s", city, newWeather.getTemperature());
+            }
+
+            updatedCity.setMessage(message);
 
             return updatedCity;
         } else {
@@ -74,17 +84,21 @@ public class CityService {
     }
 
     public CityResponse save(City city) {
-        try {
-            Weather weather = requestWeather(city.getCity());
-            city.setWeather(weather);
-        } catch (Exception e) {
-            return null;
-        }
-
-        City savedCity = cityRepository.save(city);
-
-        return CityMapper.toResponse(savedCity);
+    Weather weather = requestWeather(city.getCity());
+    if (weather == null) {
+        throw new IllegalArgumentException("Weather data is required to save the city.");
     }
+
+    city.setWeather(weather);
+
+    City savedCity = cityRepository.save(city);
+
+    CityResponse response = CityMapper.toResponse(savedCity);
+
+    response.setMessage("Created new city: " + city.getCity());
+
+    return response;
+}
 
     @Nullable
     private Weather requestWeather(String city) {
