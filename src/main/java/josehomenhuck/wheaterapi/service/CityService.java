@@ -117,7 +117,6 @@ public class CityService {
                     formatTemperature(root.at("/main/feels_like").asDouble())
             );
         } catch (Exception e) {
-            e.printStackTrace();
             return null;
         }
     }
