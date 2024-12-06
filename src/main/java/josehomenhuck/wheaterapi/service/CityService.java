@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import javax.swing.text.html.Option;
 import java.text.Normalizer;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @Transactional
@@ -44,7 +46,7 @@ public class CityService {
         String cityToLower = Normalizer.normalize(city, Normalizer.Form.NFD)
                 .replaceAll("[^\\p{ASCII}]", "")
                 .toLowerCase();
-        City findCity = cityRepository.findByCity(cityToLower);
+        City findCity = cityRepository.findByCityOrElseNull(cityToLower);
 
         if (findCity != null) {
             // Capture the last temp
@@ -84,21 +86,21 @@ public class CityService {
     }
 
     public CityResponse save(City city) {
-    Weather weather = requestWeather(city.getCity());
-    if (weather == null) {
-        throw new IllegalArgumentException("Weather data is required to save the city.");
+        Weather weather = requestWeather(city.getCity());
+        if (weather == null) {
+            throw new IllegalArgumentException("Weather data is required to save the city.");
+        }
+
+        city.setWeather(weather);
+
+        City savedCity = cityRepository.save(city);
+
+        CityResponse response = CityMapper.toResponse(savedCity);
+
+        response.setMessage("Created new city: " + city.getCity());
+
+        return response;
     }
-
-    city.setWeather(weather);
-
-    City savedCity = cityRepository.save(city);
-
-    CityResponse response = CityMapper.toResponse(savedCity);
-
-    response.setMessage("Created new city: " + city.getCity());
-
-    return response;
-}
 
     @Nullable
     private Weather requestWeather(String city) {
